@@ -86,6 +86,9 @@ class Ship (Context):
     def take_food (self, amt):
         self.food = self.food - amt
 
+    def give_food (self, amt):
+        self.food = self.food + amt
+
     def enter (self):
         pass
 
