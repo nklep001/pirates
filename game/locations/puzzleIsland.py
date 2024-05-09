@@ -4,6 +4,9 @@ import game.config as config
 from game.display import announce
 from game.events import *
 import game.items as items
+import pygame
+import game.combat as combat
+import random
 
 class puzzleIsland (location.Location):
 
@@ -18,6 +21,8 @@ class puzzleIsland (location.Location):
         self.locations["trees"] = Trees(self)
         self.locations["tomb"] = Tomb(self)
         self.locations["battleground"] = battleground(self)
+        self.locations["grotto"] = food_grotto(self)
+        self.locations["tower"] = hermits_tower(self)
 
     def enter (self, ship):
         print ("arrived at an island")
@@ -91,8 +96,10 @@ class Trees (location.SubLocation):
         announce (description)
 
     def process_verb (self, verb, cmd_list, nouns):
-        if (verb == "south" or verb == "north" or verb == "east" or verb == "west"):
+        if (verb == "south" or verb == "east" or verb == "west"):
             config.the_player.next_loc = self.main_location.locations["beach"]
+        if (verb == "north"):
+            config.the_player.next_loc = self.main_location.locations["grotto"]
         #Handle taking items. Demo both "take cutlass" and "take all"
         if verb == "take":
             if self.item_in_tree == None and self.item_in_clothes == None:
@@ -200,6 +207,8 @@ class battleground(location.SubLocation):
 
         self.verbs['take'] = self
         self.verbs["investigate"] = self
+        self.concertina = True
+        self.book = True
 
     def enter(self):
         description = "A large battlefeild lay before you. \nScattered about are the remnents of a great scrimage between what looks like the royal army and a large pirate captains army."
@@ -217,6 +226,185 @@ class battleground(location.SubLocation):
         if (verb == "west"):
             announce("Back the way you came huh? Probably a good idea.")
             config.the_player.next_loc = self.main_location.locations["beach"]
-        if (verb == "Investigate"):
+        if (verb == "investigate"):
             announce("The captain's moldy bones, and rottoin woden chair overlook the carnage between both armies.")
             announce("In the captain's arms is a very old looking book with a cover adorned with jewels and script unknown to you.")
+            announce("Next to the chair is a black and red concertina; on close inspection you feel a chill run down youre spine")
+        if (verb == "take"):
+            if self.concertina == False and self.book == False:
+                announce ("You don't see anything to take.")
+            if len(cmd_list) > 1:
+                if (cmd_list[1] == "concertina"):
+                    announce ("You take the concertina from beside the throne.")
+                    config.the_player.add_to_inventory([Concertina()])
+                    self.concertina = False
+                    pygame.mixer.init()
+                    pygame.mixer.music.load("game/Three Concertina Tunes.mp3")
+                    pygame.mixer.music.set_volume(0.7)
+                    pygame.mixer.music.play()
+                elif (cmd_list[1] == "book"):
+                    announce ("You take the book from from the moldy captain.")
+                    config.the_player.add_to_inventory([Book()])
+                    self.book = False
+                    announce("The captains bones go limp for a beat, but then his eyes begin to glow and suddenly the captain lunges!\nget ready!")
+                    self.Boss_battle()
+
+    def Boss_battle(self):
+        monsters = []
+        monsters.append(Boss("Moldy Pirate Captain"))
+        monsters.append(combat.Drowned("Pirate Soldier"))
+        combat.Combat(monsters).combat()
+
+class food_grotto(location.SubLocation):
+    def __init__(self, m):
+        super().__init__(m)
+        self.name = "grotto"
+        self.verbs['north'] = self
+        self.verbs['south'] = self
+        self.verbs['east'] = self
+        self.verbs['west'] = self
+
+        self.verbs['take'] = self
+        self.verbs["look"] = self
+
+    def enter(self):
+        description = "The trees thin and disperse revealing a large open plantation.\nTrees of various fruits are planted in rows seperated by type."
+        announce(description)
+        announce("At the other end of the long grove is a tower on a small hill.")
+
+    def process_verb (self, verb, cmd_list, nouns):
+        if (verb == "east" or verb == "west"):
+            config.the_player.next_loc = self.main_location.locations["beach"]
+        if (verb == "south"):
+            config.the_player.next_loc = self.main_location.locations["trees"]
+        if (verb == "north"):
+            config.the_player.next_loc = self.main_location.locations["tower"]
+        
+        #Handle taking items. Demo both "take cutlass" and "take all"
+        if verb == "take":
+            if (cmd_list[1] == "fruit" or cmd_list[1] == "all"):
+                announce ("You take some fruit from the trees.")
+                config.the_player.ship.give_food(20)
+        if verb == "look":
+            announce("The trees are very neat and trimmed, perhaps the caretaker lives in the tower at the other end.")
+            announce("The stone tower overlooks the feild from a grassy hill, its small windows let light inside\nthough you cant see anything from here.")
+
+class hermits_tower(location.SubLocation):
+     
+    def __init__(self, m):
+        super().__init__(m)
+        self.name = "grotto"
+        self.verbs['north'] = self
+        self.verbs['south'] = self
+        self.verbs['east'] = self
+        self.verbs['west'] = self
+
+        self.verbs['take'] = self
+        self.verbs["steal"] = self
+        self.verbs["look"] = self
+        self.verbs["knock"] = self
+
+    def enter(self):
+        description = "Looking up at the stone tower you feel its imposing stature.\nA large wodden door blocks your entrance but the door does have a rather ornamental looking knocker."
+        announce(description)
+        announce("Despite the towers obvious age it is suprisingly well kept, even including the doormat which reads\n'What're you doing here?'.")
+
+    def process_verb (self, verb, cmd_list, nouns):
+        if (verb == "east" or verb == "west"):
+            config.the_player.next_loc = self.main_location.locations["beach"]
+        if (verb == "south"):
+            config.the_player.next_loc = self.main_location.locations["grotto"]
+        if (verb == "north"):
+            announce("Nothing lies beyond the tower, a small cliff leads to the beach.\nPresumably it just wraps back to  the one housing your ship")
+        
+        #Handle taking items. Demo both "take cutlass" and "take all"
+        if verb == "take":
+            announce("There is nothing to take, unless you want to steal the doormat.")
+        if verb == "look":
+            announce("It is a rather plain looking tower other than it being somewhat out of place.")
+            announce("The only thing of note is the door knocker (Doorbells do not exist yet).")
+        if verb == "steal":
+            announce("You stole the doormat, congratulations you monster")
+            announce("I know you are a pirate and all but did you really need the doormat.")
+        if verb == "knock":
+            announce("You knock on the door.\nAfter a moment a small window at face height swings open and a rather old looking man peers through, \nhis beard is so ling it almost spills outside of the door.")
+            announce("'Oh hello' he says with that high pitched crotchety voice old people have.\n'You folks must be hungry, I have food and CURED MEAT if ya like.'")
+            announce("BUT")
+            announce("'You must answer my riddles.'")
+            announce("It seems to you you have no choice, good luck captain.")
+            answer_1 = input("What is your name?: ")
+            answer_2 = input("What is your quest?: ")
+            answer_3 = input("what is your favorite color?: ")
+            announce("Good job that was the first round, two more to go.")
+            announce("Each party member has to answer, well three of them at least. \nYou already went so its time for crewmate number one.")
+            '''answer_4 = input("what is your name?:")
+            if answer_4 != (any crewmate name):
+                announce("The floor below the pirats feet springs up sending them flying into the trees below.")
+                announce("You have two more chances")'''
+            answer_5 = input("what is your favorite color?: ")
+            answer_6 = input("Are you sure?: ")
+            if answer_6 == "no":
+                announce("The floor below the pirats feet springs up sending them flying into the trees below.")
+            answer_7 = input("What is the capital of Assyria?: ")
+            if answer_7 != "assur":
+                if answer_7 != "Assur":
+                    announce("The floor below the pirats feet springs up sending them flying into the trees below.")
+            answer_8 = input("What is your name?: ")
+            answer_9 = input("What is your quest?: ")
+            answer_10 = input("what is the Airspeed velocity of an unladen swallow?: ")
+            if answer_10 != "african or european":
+                if answer_10 != "African or European":
+                    if answer_10 != "african or european?":
+                        if answer_10 != "African or European?":
+                            announce("WRONG")
+                            announce("The floor below the pirats feet springs up sending them flying into the trees below.")
+                    else:
+                        announce("'I don't know' the old hermit says.")
+                        announce("and right as he finishes speaking the door swings open and the hermit goes flying.\n he is launched so far in the air all you see is a twinkle as he dissapears.")
+                        announce("There is indeed a ton of food in here just as the hermit claimed, and it seems he won't need it anymore.")
+                        config.the_player.ship.give_food(40)
+
+                
+
+
+class Concertina(items.Item):
+    def __init__(self):
+        super().__init__("concertina", 200)
+
+class Book(items.Item):
+    def __init__(self):
+        super().__init__("book", 200)
+
+class Boss(combat.Monster):
+    attackPattern = 0
+    def __init__ (self, name):
+        attacks = {}
+        attacks["cut"] = ["cuts",random.randrange(73,75), (7,17)]
+        attacks["spit"] = ["spits on",random.randrange(35,51), (3,10)]
+        attacks["cannon blast"] = ["cannon blasts",random.randrange(90,95), (10,20)]
+        #7 to 19 hp, bite attack, 65 to 85 speed (100 is "normal")
+        super().__init__(name, random.randrange(150,165), attacks, 120 + random.randrange(-10,11))
+
+    def pickAction(self):
+        attacks = self.getAttacks()
+        if self.attackPattern == 0:
+            self.attackPattern = (self.attackPattern + 1)%4
+            return (attacks[0])
+        elif self.attackPattern == 1:
+            self.attackPattern = (self.attackPattern + 1)%4
+            return (attacks[0])
+        elif self.attackPattern == 2:
+            self.attackPattern = (self.attackPattern + 1)%4
+            return (attacks[2])
+        elif self.attackPattern == 3:
+            self.attackPattern = (self.attackPattern + 1)%4
+            return (attacks[1])
+        
+
+    def pickTargets(self, action, attacker, allies, enemies):
+        if action.name == "cannon blast":
+            return enemies
+        else:
+            return [random.choice(enemies)]
+
+

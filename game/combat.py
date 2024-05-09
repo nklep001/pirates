@@ -47,8 +47,8 @@ class Combat():
                 if(chosen_action != None):
                     chosen_targets = chosen_action.pickTargets(chosen_action, moving, config.the_player.get_pirates(), self.monsters)
             else:
-                chosen_targets = [random.choice(config.the_player.get_pirates())]
                 chosen_action = moving.pickAction()
+                chosen_targets = moving.pickTargets(chosen_action, moving, self.monsters, config.the_player.get_pirates())
             #Resolve
             chosen_action.resolve(chosen_action, moving, chosen_targets)
             self.monsters = [m for m in self.monsters if m.health >0]
@@ -71,6 +71,11 @@ class Monster(superclasses.CombatCritter):
     def pickAction(self):
         attacks = self.getAttacks()
         return random.choice(attacks)
+    
+    def pickTargets(self, action, attacker, allies, enemies):
+        return [random.choice(enemies)]
+
+
 
 class Macaque(Monster):
     def __init__ (self, name):
