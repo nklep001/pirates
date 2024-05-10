@@ -7,6 +7,7 @@ import game.items as items
 import pygame
 import game.combat as combat
 import random
+from game.crewmate import CrewMate as crew
 
 class puzzleIsland (location.Location):
 
@@ -248,6 +249,10 @@ class battleground(location.SubLocation):
                     self.book = False
                     announce("The captains bones go limp for a beat, but then his eyes begin to glow and suddenly the captain lunges!\nget ready!")
                     self.Boss_battle()
+                    announce(" Great work the haunted captain is defeated.")
+                    announce("In the aftermath you notice the pirate throne has been blown to bits,\nand underneath is a large chest full of gold.")
+                    announce("You take the chest back to your ship, what a sweet deal!")
+                    config.the_player.add_to_inventory([Treasure_Chest()])
 
     def Boss_battle(self):
         monsters = []
@@ -273,6 +278,7 @@ class food_grotto(location.SubLocation):
         announce("At the other end of the long grove is a tower on a small hill.")
 
     def process_verb (self, verb, cmd_list, nouns):
+        food_left = True
         if (verb == "east" or verb == "west"):
             config.the_player.next_loc = self.main_location.locations["beach"]
         if (verb == "south"):
@@ -280,11 +286,14 @@ class food_grotto(location.SubLocation):
         if (verb == "north"):
             config.the_player.next_loc = self.main_location.locations["tower"]
         
-        #Handle taking items. Demo both "take cutlass" and "take all"
         if verb == "take":
-            if (cmd_list[1] == "fruit" or cmd_list[1] == "all"):
-                announce ("You take some fruit from the trees.")
-                config.the_player.ship.give_food(20)
+            if food_left != False:
+                if (cmd_list[1] == "fruit" or cmd_list[1] == "all"):
+                    announce ("You take some fruit from the trees.")
+                    config.the_player.ship.give_food(30)
+                else:
+                    announce("You have taken all the food you could, lets hope the land owner does not notice.")
+                food_left = False
         if verb == "look":
             announce("The trees are very neat and trimmed, perhaps the caretaker lives in the tower at the other end.")
             announce("The stone tower overlooks the feild from a grassy hill, its small windows let light inside\nthough you cant see anything from here.")
@@ -302,6 +311,7 @@ class hermits_tower(location.SubLocation):
         self.verbs['take'] = self
         self.verbs["steal"] = self
         self.verbs["look"] = self
+        self.verbs["investigate"] = self
         self.verbs["knock"] = self
 
     def enter(self):
@@ -310,6 +320,7 @@ class hermits_tower(location.SubLocation):
         announce("Despite the towers obvious age it is suprisingly well kept, even including the doormat which reads\n'What're you doing here?'.")
 
     def process_verb (self, verb, cmd_list, nouns):
+        won = True
         if (verb == "east" or verb == "west"):
             config.the_player.next_loc = self.main_location.locations["beach"]
         if (verb == "south"):
@@ -320,7 +331,7 @@ class hermits_tower(location.SubLocation):
         #Handle taking items. Demo both "take cutlass" and "take all"
         if verb == "take":
             announce("There is nothing to take, unless you want to steal the doormat.")
-        if verb == "look":
+        if (verb == "look" or verb == "investigate"):
             announce("It is a rather plain looking tower other than it being somewhat out of place.")
             announce("The only thing of note is the door knocker (Doorbells do not exist yet).")
         if verb == "steal":
@@ -337,18 +348,17 @@ class hermits_tower(location.SubLocation):
             answer_3 = input("what is your favorite color?: ")
             announce("Good job that was the first round, two more to go.")
             announce("Each party member has to answer, well three of them at least. \nYou already went so its time for crewmate number one.")
-            '''answer_4 = input("what is your name?:")
-            if answer_4 != (any crewmate name):
-                announce("The floor below the pirats feet springs up sending them flying into the trees below.")
-                announce("You have two more chances")'''
+            answer_4 = input("what is your name?:")
             answer_5 = input("what is your favorite color?: ")
             answer_6 = input("Are you sure?: ")
             if answer_6 == "no":
                 announce("The floor below the pirats feet springs up sending them flying into the trees below.")
+                crew.chosen_target.inflict_damage(10, "falling", combat = True)
             answer_7 = input("What is the capital of Assyria?: ")
             if answer_7 != "assur":
                 if answer_7 != "Assur":
                     announce("The floor below the pirats feet springs up sending them flying into the trees below.")
+                    crew.chosen_target.inflict_damage(10, "falling", combat = True)
             answer_8 = input("What is your name?: ")
             answer_9 = input("What is your quest?: ")
             answer_10 = input("what is the Airspeed velocity of an unladen swallow?: ")
@@ -356,13 +366,16 @@ class hermits_tower(location.SubLocation):
                 if answer_10 != "African or European":
                     if answer_10 != "african or european?":
                         if answer_10 != "African or European?":
+                            won = False
                             announce("WRONG")
                             announce("The floor below the pirats feet springs up sending them flying into the trees below.")
-                    else:
-                        announce("'I don't know' the old hermit says.")
-                        announce("and right as he finishes speaking the door swings open and the hermit goes flying.\n he is launched so far in the air all you see is a twinkle as he dissapears.")
-                        announce("There is indeed a ton of food in here just as the hermit claimed, and it seems he won't need it anymore.")
-                        config.the_player.ship.give_food(40)
+                            crew.chosen_target.inflict_damage(10, "falling", combat = True)
+            if won == True:
+                announce("'I don't know' the old hermit says.")
+                announce("and right as he finishes speaking the door swings open and the hermit goes flying.\n he is launched so far in the air all you see is a twinkle as he dissapears.")
+                announce("There is indeed a ton of food in here just as the hermit claimed, and it seems he won't need it anymore.")
+                announce("You obviously take the food.")
+                config.the_player.ship.give_food(40)
 
                 
 
@@ -375,15 +388,19 @@ class Book(items.Item):
     def __init__(self):
         super().__init__("book", 200)
 
+class Treasure_Chest(items.Item):
+    def __init__(self):
+        super().__init__("Treasure chest", 1500)
+
 class Boss(combat.Monster):
     attackPattern = 0
     def __init__ (self, name):
         attacks = {}
         attacks["cut"] = ["cuts",random.randrange(73,75), (7,17)]
-        attacks["spit"] = ["spits on",random.randrange(35,51), (3,10)]
+        attacks["spit"] = ["spits on",random.randrange(35,51), (5,10)]
         attacks["cannon blast"] = ["cannon blasts",random.randrange(90,95), (10,20)]
         #7 to 19 hp, bite attack, 65 to 85 speed (100 is "normal")
-        super().__init__(name, random.randrange(150,165), attacks, 120 + random.randrange(-10,11))
+        super().__init__(name, random.randrange(200,250), attacks, 150 + random.randrange(-10,11))
 
     def pickAction(self):
         attacks = self.getAttacks()
